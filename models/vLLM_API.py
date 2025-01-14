@@ -18,6 +18,7 @@ def load_vLLM_model(model_ckpt, seed, tensor_parallel_size=1, half_precision=Fal
             trust_remote_code=True,
             max_num_seqs=max_num_seqs,
             swap_space=16,
+            
         )
     else:
         llm = LLM(

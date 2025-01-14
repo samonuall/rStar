@@ -5,12 +5,19 @@ import os
 import time
 from tqdm import tqdm
 import concurrent.futures
-from openai import AzureOpenAI
+# from openai import AzureOpenAI
 
-client = AzureOpenAI(
-    api_version="",
-    azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT", ""),
-    api_key=os.environ.get("AZURE_OPENAI_API_KEY", ""),
+# my imports
+from azure.ai.inference import ChatCompletionsClient
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.inference.models import SystemMessage, UserMessage
+from dotenv import load_dotenv
+load_dotenv()
+
+# changed to azure version because other wasn't working for me
+client = ChatCompletionsClient(
+    endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+    credential=AzureKeyCredential(os.environ["AZURE_OPENAI_KEY"]),
 )
 
 max_threads = 32
@@ -29,7 +36,8 @@ def generate_with_OpenAI_model(
     top_p=0.95,
     stop=["\n"],
 ):
-    messages = [{"role": "user", "content": prompt}]
+    messages = [SystemMessage(content="You are a helpful assistant."),
+                UserMessage(content=prompt),]
     parameters = {
         "model": model_ckpt,
         "temperature": temperature,
@@ -43,7 +51,11 @@ def generate_with_OpenAI_model(
     while not ans:
         try:
             time.sleep(timeout)
-            completion = client.chat.completions.create(messages=messages, **parameters)
+            # completion = client.chat.completions.create(messages=messages, **parameters)
+            completion = client.complete(
+                    messages=messages,
+                    **parameters
+                )
             ans = completion.choices[0].message.content
 
         except Exception as e:
@@ -86,3 +98,8 @@ def generate_n_with_OpenAI_model(
             ans = future.result()
             preds.append(ans)
     return preds
+
+
+if __name__ == "__main__":
+    print(generate_with_OpenAI_model("What is the meaning of life?", model_ckpt="gpt-35-turbo-16k"))
+    print(generate_n_with_OpenAI_model("What is the meaning of life?", n=5, model_ckpt="gpt-35-turbo-16k", temperature=0.8, top_p=0.95, stop=["\n"]))
